@@ -79,17 +79,17 @@ static int check_args(int argc, char *argv[], struct httpreq *httpreq) {
    for (i = 2; argv[i] != NULL; ++i) {
       if (argv[i][0] == '-') {
          mode = set_mode(argv[i]);
-	 if (!has_args(mode)) {
-	   ops |= get_op(mode);
-	 }
-	 continue;
+	   if (!has_args(mode)) {
+	      ops |= get_op(mode);
+	   }
+	   continue;
       }
       if (i == 2) {
          print_usage();
       }
       if (mode == HEADERMODE) {
          httpreq->headers = safe_realloc(httpreq->headers, sizeof(char *) * (httpreq->numHeaders + 1));
-	 httpreq->headers[httpreq->numHeaders++] = argv[i];
+	      httpreq->headers[httpreq->numHeaders++] = argv[i];
       } else if (mode == METHODMODE) {
          httpreq->method = get_method_code(argv[i]);
       }
@@ -103,12 +103,12 @@ static void read_input(struct httpreq *httpreq) {
    while (1) {
       result = fread(buffer + amtRead, sizeof(unsigned char), bufSize - amtRead, stdin);
       if (result < (bufSize - amtRead)) {
-	 if (ferror(stdin)) {
-	    perror_exit(NULL);
-	 }
+	      if (ferror(stdin)) {
+	         perror_exit(NULL);
+	      }
          if (feof(stdin)) {
-	    break;
-	 }
+	         break;
+	      } 
       }
       amtRead += result;
       if (amtRead != bufSize) {
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
    }
    sockfd = send_request(httpreq);
    receive(sockfd, &data); 
-   write_data(&data, opts);   
+   write_data(&data, opts);  
    free(data.body);
    free(httpreq.headers);
    free(httpreq.body);

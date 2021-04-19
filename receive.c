@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <inttypes.h>
 #include "receive.h"
 #include "util.h"
 
@@ -102,19 +103,20 @@ static char *get_header(int sockfd, size_t *size) {
    return buffer;
 }
 
-static size_t check_content_length(char *header) {
-   const char *contentLength = "Content-Length: ";
-   int contentLengthLen = strlen(contentLength), errnoSave;
-   char *ptr = strstr(header, contentLength);
-   unsigned long long contentLen;
-   if (ptr == NULL) {
-      return -1;
+static int check_content_length(char *header, size_t *len) {
+   const char *contentLength = "Content-Length";
+   int errnoSave;
+   char *contentLenStrPtr = strstr(header, contentLength);
+   char *endptr;
+   uintmax_t contentLen;
+   if (contentLenStrPtr == NULL) {
+      return 0;
    }
    errnoSave = errno;
    errno = 0;
-   contentLen = strtoull(ptr + contentLengthLen, NULL, 10);
-   if (errno == ERANGE || contentLen > SIZE_T_MAX) {
-      str_exit("Content_Length too long");
+   contentLen = strtoumax(contentLenStrPtr, &endptr, 10);
+   if (contentLenStrPtr == endptr || *endptr != '\0' || contentLen > SIZE_T_MAX) {
+      return 0;
    }
    errno = errnoSave;
    return contentLen;
@@ -139,25 +141,25 @@ static int check_error_code(struct receive *data) {
 }
 
 int receive(int sockfd, struct receive *data) {
-   size_t size, contentLength;
-   data->header = get_header(sockfd, &size);
-   data->headerLength = size;
+   size_t bodyLength, contentLength, headerLength;
+   data->header = get_header(sockfd, &headerLength);
+   data->headerLength = headerLength;
    data->error = NULL;
    data->body = NULL;
    if (check_error_code(data) == ERRORCODE) {
       return ERRORCODE;
    }
-   contentLength = check_content_length(data->header);
-   if (contentLength == 0) {
-      data->body = NULL;
-      data->bodyLength = 0;
-      return 0;
-   } else if (contentLength == -1) {
-      data->body = get_data_unkown(sockfd, &size);
+   if (check_content_length(data->header, &contentLength)) {
+      if (contentLength == 0) {
+         data->body = NULL;
+         data->bodyLength = 0;
+      } else {
+         data->body = get_data_known(sockfd, contentLength, &bodyLength);
+      }
    } else {
-      data->body = get_data_known(sockfd, contentLength, &size);
+      data->body = get_data_unkown(sockfd, &bodyLength);
    }
-   data->bodyLength = size;
+   data->bodyLength = bodyLength;
    close(sockfd);
    return 0;
 }
